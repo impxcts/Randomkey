@@ -16,7 +16,7 @@ Generates long, high-entropy passwords with no lazy patterns (no triple-repeated
 
 ## ✨ Overview
 
-Open `index.html`, get a password. That's the whole app.
+Open `randomkey.html`, get a password. That's the whole app.
 
 Every character comes from the browser's cryptographically secure random number generator (`crypto.getRandomValues`) — not `Math.random()`, which is not safe for anything security-related. Nothing is logged, saved, or sent anywhere; there's no backend at all.
 
