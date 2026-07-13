@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Randomkey — Password Generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Dark mode (default) */
+    --ink:#15171C;
+    --ink-2:#1B1E24;
+    --panel:#20242C;
+    --line:#484E59;
+    --line-dim:#2A2E36;
+    --paper:#EDEDEF;
+    --paper-dim:#8B9099;
+    --brass:#C9A227;
+    --brass-bright:#E8C35A;
+    --danger:#D9634F;
+    --mid:#D9A64F;
+    --good:#6FBF8B;
+
+    color-scheme: dark;
+  }
+
+  html[data-theme="light"]{
+    --ink:#F7F6F3;
+    --ink-2:#FFFFFF;
+    --panel:#F0EEE9;
+    --line:#C9C5BC;
+    --line-dim:#E2DFD8;
+    --paper:#1B1B1B;
+    --paper-dim:#6B6B6B;
+    --brass:#A9790E;
+    --brass-bright:#8C6208;
+    --danger:#B23A22;
+    --mid:#8A6205;
+    --good:#227A4F;
+
+    color-scheme: light;
+  }
+
+  *{ box-sizing:border-box; }
+
+  html,body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 1px 1px, var(--line-dim) 1px, transparent 1px) 0 0/28px 28px,
+      var(--ink);
+    color:var(--paper);
+    font-family:'IBM Plex Sans', sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:32px 16px;
+    transition:background-color 200ms ease, color 200ms ease;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  .sheet{
+    position:relative;
+    width:100%;
+    max-width:560px;
+    background:var(--ink-2);
+    border:1px solid var(--line-dim);
+    padding:34px 34px 0 34px;
+    transition:background-color 200ms ease, border-color 200ms ease;
+  }
+
+  /* corner registration marks, like a blueprint sheet */
+  .crosshair{
+    position:absolute;
+    width:18px;
+    height:18px;
+    pointer-events:none;
+  }
+  .crosshair::before, .crosshair::after{
+    content:"";
+    position:absolute;
+    background:var(--line);
+  }
+  .crosshair::before{ width:100%; height:1px; top:50%; left:0; }
+  .crosshair::after{ height:100%; width:1px; left:50%; top:0; }
+  .crosshair.tl{ top:-9px; left:-9px; }
+  .crosshair.tr{ top:-9px; right:-9px; }
+  .crosshair.bl{ bottom:-9px; left:-9px; }
+  .crosshair.br{ bottom:-9px; right:-9px; }
+
+  header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    border-bottom:1px solid var(--line-dim);
+    padding-bottom:18px;
+    margin-bottom:26px;
+  }
+
+  .wordmark{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:22px;
+    letter-spacing:0.02em;
+    color:var(--paper);
+  }
+  .wordmark span{ color:var(--brass); }
+
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    color:var(--paper-dim);
+    text-transform:uppercase;
+  }
+
+  .header-right{
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+
+  .theme-toggle{
+    width:30px;
+    height:30px;
+    padding:0;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid var(--line-dim);
+    background:transparent;
+    color:var(--paper);
+    cursor:pointer;
+    font-size:14px;
+    line-height:1;
+    transition:border-color 150ms ease;
+  }
+  .theme-toggle:hover{ border-color:var(--line); }
+  .theme-toggle:focus-visible{ outline:2px solid var(--brass-bright); outline-offset:2px; }
+
+  /* ---- tumbler readout ---- */
+  .readout-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    color:var(--paper-dim);
+    text-transform:uppercase;
+    margin-bottom:10px;
+    display:flex;
+    justify-content:space-between;
+  }
+
+  .tumblers{
+    display:flex;
+    flex-wrap:wrap;
+    gap:5px;
+    padding:16px;
+    background:var(--ink);
+    border:1px solid var(--line-dim);
+    min-height:64px;
+    align-content:flex-start;
+  }
+
+  .tumbler{
+    width:26px;
+    height:38px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    background:var(--panel);
+    border:1px solid var(--line-dim);
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:16px;
+    color:var(--paper);
+    perspective:200px;
+  }
+  .tumbler.symbol{ color:var(--brass-bright); }
+  .tumbler.digit{ color:var(--good); }
+
+  .tumbler.flip{
+    animation:flip 420ms ease;
+  }
+  @keyframes flip{
+    0%{ transform:rotateX(90deg); opacity:0.2; }
+    60%{ transform:rotateX(0deg); opacity:1; }
+    100%{ transform:rotateX(0deg); }
+  }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    margin-top:14px;
+  }
+
+  button{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    cursor:pointer;
+    border:1px solid var(--line-dim);
+    background:transparent;
+    color:var(--paper);
+    padding:11px 16px;
+    transition:border-color 150ms ease, color 150ms ease, background 150ms ease;
+  }
+  button:hover{ border-color:var(--line); }
+  button:focus-visible{ outline:2px solid var(--brass-bright); outline-offset:2px; }
+
+  .btn-generate{
+    flex:1;
+    background:var(--brass);
+    border-color:var(--brass);
+    color:#15161A;
+    font-weight:600;
+  }
+  .btn-generate:hover{ background:var(--brass-bright); border-color:var(--brass-bright); }
+
+  .btn-copy.copied{
+    border-color:var(--good);
+    color:var(--good);
+  }
+
+  /* ---- gauge ---- */
+  .gauge-block{ margin-top:30px; }
+
+  .gauge{
+    height:6px;
+    background:var(--ink);
+    border:1px solid var(--line-dim);
+    position:relative;
+    overflow:hidden;
+  }
+  .gauge-fill{
+    height:100%;
+    width:0%;
+    background:var(--danger);
+    transition:width 300ms ease, background 300ms ease;
+  }
+  .gauge-ticks{
+    display:flex;
+    justify-content:space-between;
+    margin-top:4px;
+  }
+  .gauge-ticks span{
+    width:1px;
+    height:5px;
+    background:var(--line-dim);
+  }
+
+  .gauge-readout{
+    display:flex;
+    justify-content:space-between;
+    margin-top:8px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px;
+    color:var(--paper-dim);
+  }
+  .gauge-readout .strength-word{
+    color:var(--paper);
+    font-weight:600;
+    letter-spacing:0.04em;
+  }
+
+  /* ---- controls ---- */
+  .controls{
+    margin-top:30px;
+    border-top:1px solid var(--line-dim);
+    padding-top:22px;
+  }
+
+  .length-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    margin-bottom:6px;
+  }
+  .length-row label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--paper-dim);
+  }
+  .length-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:20px;
+    font-weight:600;
+    color:var(--brass-bright);
+  }
+
+  input[type="range"]{
+    -webkit-appearance:none;
+    width:100%;
+    height:1px;
+    background:var(--line-dim);
+    margin:18px 0 24px 0;
+  }
+  input[type="range"]::-webkit-slider-thumb{
+    -webkit-appearance:none;
+    width:14px;
+    height:14px;
+    background:var(--brass);
+    border:2px solid var(--paper);
+    cursor:pointer;
+    margin-top:-6.5px;
+  }
+  input[type="range"]::-moz-range-thumb{
+    width:14px;
+    height:14px;
+    background:var(--brass);
+    border:2px solid var(--paper);
+    cursor:pointer;
+    border-radius:0;
+  }
+  input[type="range"]::-moz-range-track{
+    height:1px;
+    background:var(--line-dim);
+  }
+
+  .toggles{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px 20px;
+  }
+
+  .toggle{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--paper);
+    cursor:pointer;
+    user-select:none;
+  }
+
+  .switch{
+    position:relative;
+    width:30px;
+    height:16px;
+    border:1px solid var(--line-dim);
+    background:var(--ink);
+    flex-shrink:0;
+  }
+  .switch::after{
+    content:"";
+    position:absolute;
+    top:2px;
+    left:2px;
+    width:10px;
+    height:10px;
+    background:var(--paper-dim);
+    transition:transform 150ms ease, background 150ms ease;
+  }
+  input[type="checkbox"]{ display:none; }
+  input[type="checkbox"]:checked + .switch{ border-color:var(--brass); }
+  input[type="checkbox"]:checked + .switch::after{
+    transform:translateX(13px);
+    background:var(--brass);
+  }
+  input[type="checkbox"]:disabled + .switch{ opacity:0.35; }
+
+  /* ---- title block, like an engineering drawing footer ---- */
+  .title-block{
+    margin-top:34px;
+    border-top:1px solid var(--line-dim);
+    display:grid;
+    grid-template-columns:repeat(3, 1fr);
+  }
+  .title-block div{
+    padding:12px 0;
+    border-right:1px solid var(--line-dim);
+    text-align:center;
+  }
+  .title-block div:last-child{ border-right:none; }
+  .title-block .tb-label{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:9.5px;
+    letter-spacing:0.14em;
+    color:var(--paper-dim);
+    text-transform:uppercase;
+    margin-bottom:4px;
+  }
+  .title-block .tb-value{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13px;
+    color:var(--paper);
+    font-weight:600;
+  }
+
+  footer{
+    text-align:center;
+    padding:18px 0 22px 0;
+  }
+  footer p{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:10.5px;
+    color:var(--paper-dim);
+    letter-spacing:0.04em;
+    margin:0;
+  }
+
+  .sr-only{
+    position:absolute;
+    width:1px;height:1px;
+    padding:0;margin:-1px;
+    overflow:hidden;
+    clip:rect(0,0,0,0);
+    white-space:nowrap;
+    border:0;
+  }
+</style>
+</head>
+<body>
+
+<main class="sheet" role="main">
+  <span class="crosshair tl"></span>
+  <span class="crosshair tr"></span>
+  <span class="crosshair bl"></span>
+  <span class="crosshair br"></span>
+
+  <header>
+    <div class="wordmark">Random<span>key</span></div>
+    <div class="header-right">
+      <span class="eyebrow">Local · Offline · No Storage</span>
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to light mode">
+        <span id="themeIcon">☀️</span>
+      </button>
+    </div>
+  </header>
+
+  <section>
+    <div class="readout-label">
+      <span>Password</span>
+      <span id="charsetLabel">A–Z a–z 0–9 !@#</span>
+    </div>
+    <div class="readout-label" id="clipboardStatus" style="margin-top:-4px; margin-bottom:14px; color:var(--paper-dim);"></div>
+    <div class="tumblers" id="tumblers" aria-live="polite"></div>
+
+    <div class="actions">
+      <button class="btn-generate" id="generateBtn" type="button">⟳ Forge New</button>
+      <button class="btn-copy" id="copyBtn" type="button">Copy</button>
+    </div>
+  </section>
+
+  <section class="gauge-block">
+    <div class="gauge"><div class="gauge-fill" id="gaugeFill"></div></div>
+    <div class="gauge-ticks">
+      <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div class="gauge-readout">
+      <span id="entropyReadout">0 bits of entropy</span>
+      <span class="strength-word" id="strengthWord">—</span>
+    </div>
+  </section>
+
+  <section class="controls">
+    <div class="length-row">
+      <label for="lengthSlider">Length</label>
+      <span class="length-value" id="lengthValue">18</span>
+    </div>
+    <input type="range" id="lengthSlider" min="10" max="32" value="18" step="1">
+
+    <div class="toggles">
+      <label class="toggle">
+        <input type="checkbox" id="optUpper" checked>
+        <span class="switch"></span> Uppercase
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optLower" checked>
+        <span class="switch"></span> Lowercase
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optDigits" checked>
+        <span class="switch"></span> Numbers
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optSymbols" checked>
+        <span class="switch"></span> Symbols
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optAmbiguous">
+        <span class="switch"></span> Exclude look-alikes
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="optRepeats" checked disabled>
+        <span class="switch"></span> No triple repeats
+      </label>
+    </div>
+  </section>
+
+  <div class="title-block">
+    <div>
+      <div class="tb-label">Charset</div>
+      <div class="tb-value" id="tbCharset">70</div>
+    </div>
+    <div>
+      <div class="tb-label">Length</div>
+      <div class="tb-value" id="tbLength">18</div>
+    </div>
+    <div>
+      <div class="tb-label">Rev</div>
+      <div class="tb-value" id="tbRev">0001</div>
+    </div>
+  </div>
+
+  <footer>
+    <p>Generated in your browser with crypto.getRandomValues — nothing is sent or stored anywhere.</p>
+  </footer>
+</main>
+
+<span class="sr-only" id="liveAnnounce" aria-live="polite"></span>
+
+<script>
+(function(){
+  const SETS = {
+    upper: "ABCDEFGHJKLMNPQRSTUVWXYZ",
+    upperFull: "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    lower: "abcdefghijkmnpqrstuvwxyz",
+    lowerFull: "abcdefghijklmnopqrstuvwxyz",
+    digits: "23456789",
+    digitsFull: "0123456789",
+    symbols: "!@#$%^&*-_=+?"
+  };
+
+  const el = {
+    tumblers: document.getElementById('tumblers'),
+    generateBtn: document.getElementById('generateBtn'),
+    copyBtn: document.getElementById('copyBtn'),
+    lengthSlider: document.getElementById('lengthSlider'),
+    lengthValue: document.getElementById('lengthValue'),
+    optUpper: document.getElementById('optUpper'),
+    optLower: document.getElementById('optLower'),
+    optDigits: document.getElementById('optDigits'),
+    optSymbols: document.getElementById('optSymbols'),
+    optAmbiguous: document.getElementById('optAmbiguous'),
+    gaugeFill: document.getElementById('gaugeFill'),
+    entropyReadout: document.getElementById('entropyReadout'),
+    strengthWord: document.getElementById('strengthWord'),
+    charsetLabel: document.getElementById('charsetLabel'),
+    clipboardStatus: document.getElementById('clipboardStatus'),
+    tbCharset: document.getElementById('tbCharset'),
+    tbLength: document.getElementById('tbLength'),
+    tbRev: document.getElementById('tbRev'),
+    liveAnnounce: document.getElementById('liveAnnounce'),
+    themeToggle: document.getElementById('themeToggle'),
+    themeIcon: document.getElementById('themeIcon')
+  };
+
+  let currentPassword = "";
+  let generationCount = 0;
+
+  // ---- Theme (light/dark) ----
+  function applyTheme(theme){
+    document.documentElement.setAttribute('data-theme', theme);
+    el.themeIcon.textContent = theme === 'dark' ? '☀️' : '🌙';
+    el.themeToggle.setAttribute('aria-label', theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+    try { localStorage.setItem('randomkey-theme', theme); } catch(e) {}
+  }
+
+  function initTheme(){
+    let saved = null;
+    try { saved = localStorage.getItem('randomkey-theme'); } catch(e) {}
+    if (saved === 'light' || saved === 'dark'){
+      applyTheme(saved);
+      return;
+    }
+    const prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+    applyTheme(prefersLight ? 'light' : 'dark');
+  }
+
+  el.themeToggle.addEventListener('click', () => {
+    const current = document.documentElement.getAttribute('data-theme') || 'dark';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+  });
+
+  initTheme();
+
+  function secureRandomInt(maxExclusive){
+    const range = 256 - (256 % maxExclusive);
+    const arr = new Uint8Array(1);
+    let x;
+    do {
+      crypto.getRandomValues(arr);
+      x = arr[0];
+    } while (x >= range);
+    return x % maxExclusive;
+  }
+
+  function buildPool(){
+    const useAmbig = !el.optAmbiguous.checked;
+    let pool = "";
+    const categories = [];
+
+    if (el.optUpper.checked){
+      const s = useAmbig ? SETS.upperFull : SETS.upper;
+      pool += s; categories.push(s);
+    }
+    if (el.optLower.checked){
+      const s = useAmbig ? SETS.lowerFull : SETS.lower;
+      pool += s; categories.push(s);
+    }
+    if (el.optDigits.checked){
+      const s = useAmbig ? SETS.digitsFull : SETS.digits;
+      pool += s; categories.push(s);
+    }
+    if (el.optSymbols.checked){
+      pool += SETS.symbols; categories.push(SETS.symbols);
+    }
+    return { pool, categories };
+  }
+
+  function violatesTripleRepeat(chars, index, ch){
+    return index >= 2 && chars[index-1] === ch && chars[index-2] === ch;
+  }
+
+  function generatePassword(){
+    const { pool, categories } = buildPool();
+    const length = parseInt(el.lengthSlider.value, 10);
+
+    if (!pool){
+      // safety net: force lowercase on if everything got switched off
+      el.optLower.checked = true;
+      return generatePassword();
+    }
+
+    let chars = [];
+    let attempts = 0;
+    const maxAttempts = 500;
+
+    while (chars.length < length && attempts < maxAttempts){
+      attempts++;
+      const ch = pool[secureRandomInt(pool.length)];
+      if (violatesTripleRepeat(chars, chars.length, ch)) continue;
+      chars.push(ch);
+    }
+
+    // Guarantee at least one character from each selected category
+    categories.forEach((set, i) => {
+      const hasOne = chars.some(c => set.includes(c));
+      if (!hasOne && chars.length > i){
+        let candidate = set[secureRandomInt(set.length)];
+        let tries = 0;
+        while (violatesTripleRepeat(chars, i, candidate) && tries < 20){
+          candidate = set[secureRandomInt(set.length)];
+          tries++;
+        }
+        chars[i] = candidate;
+      }
+    });
+
+    // Final safety pass: fix any accidental triple repeats after category injection
+    for (let i = 2; i < chars.length; i++){
+      let tries = 0;
+      while (violatesTripleRepeat(chars, i, chars[i]) && tries < 30){
+        chars[i] = pool[secureRandomInt(pool.length)];
+        tries++;
+      }
+    }
+
+    return chars.join("");
+  }
+
+  function classify(ch){
+    if (SETS.symbols.includes(ch)) return 'symbol';
+    if (/[0-9]/.test(ch)) return 'digit';
+    return 'letter';
+  }
+
+  function renderTumblers(password){
+    el.tumblers.innerHTML = "";
+    [...password].forEach((ch, i) => {
+      const div = document.createElement('div');
+      div.className = 'tumbler ' + classify(ch);
+      div.textContent = ch;
+      div.style.animationDelay = (i * 18) + 'ms';
+      el.tumblers.appendChild(div);
+      requestAnimationFrame(() => div.classList.add('flip'));
+    });
+  }
+
+  function calcEntropy(){
+    const { pool } = buildPool();
+    const length = parseInt(el.lengthSlider.value, 10);
+    const bits = pool.length > 0 ? Math.log2(pool.length) * length : 0;
+    return { bits: Math.round(bits), poolSize: pool.length };
+  }
+
+  function updateGauge(){
+    const { bits, poolSize } = calcEntropy();
+    const pct = Math.min(100, (bits / 128) * 100);
+    el.gaugeFill.style.width = pct + '%';
+
+    let word, color;
+    if (bits < 50){ word = 'Weak'; color = 'var(--danger)'; }
+    else if (bits < 75){ word = 'Fair'; color = 'var(--mid)'; }
+    else if (bits < 100){ word = 'Strong'; color = 'var(--good)'; }
+    else { word = 'Very Strong'; color = 'var(--good)'; }
+
+    el.gaugeFill.style.background = color;
+    el.strengthWord.textContent = word;
+    el.strengthWord.style.color = color;
+    el.entropyReadout.textContent = bits + ' bits of entropy';
+    el.tbCharset.textContent = poolSize;
+  }
+
+  function updateCharsetLabel(){
+    const parts = [];
+    if (el.optUpper.checked) parts.push('A–Z');
+    if (el.optLower.checked) parts.push('a–z');
+    if (el.optDigits.checked) parts.push('0–9');
+    if (el.optSymbols.checked) parts.push('!@#');
+    el.charsetLabel.textContent = parts.length ? parts.join(' ') : 'none selected';
+  }
+
+  async function copyToClipboard(text, announceSource){
+    try {
+      await navigator.clipboard.writeText(text);
+      el.copyBtn.textContent = 'Copied ✓';
+      el.copyBtn.classList.add('copied');
+      el.clipboardStatus.textContent = '✓ Copied to clipboard';
+      el.liveAnnounce.textContent = 'Password copied to clipboard.';
+      setTimeout(() => {
+        el.copyBtn.textContent = 'Copy';
+        el.copyBtn.classList.remove('copied');
+      }, 1800);
+      return true;
+    } catch(e) {
+      el.copyBtn.textContent = 'Press Ctrl+C';
+      el.clipboardStatus.textContent = announceSource === 'auto'
+        ? 'Auto-copy blocked by browser — click Copy'
+        : '';
+      return false;
+    }
+  }
+
+  function refresh(){
+    generationCount++;
+    currentPassword = generatePassword();
+    renderTumblers(currentPassword);
+    updateGauge();
+    updateCharsetLabel();
+    el.lengthValue.textContent = el.lengthSlider.value;
+    el.tbLength.textContent = el.lengthSlider.value;
+    el.tbRev.textContent = String(generationCount).padStart(4, '0');
+    el.copyBtn.textContent = 'Copy';
+    el.copyBtn.classList.remove('copied');
+    el.clipboardStatus.textContent = '';
+    el.liveAnnounce.textContent = 'New password generated, ' + el.lengthSlider.value + ' characters.';
+
+    // Auto-copy every freshly generated password to the clipboard.
+    // (Silently no-ops on the very first page load in browsers that
+    // require a user gesture before allowing clipboard writes.)
+    copyToClipboard(currentPassword, 'auto');
+  }
+
+  el.generateBtn.addEventListener('click', refresh);
+  el.lengthSlider.addEventListener('input', refresh);
+  [el.optUpper, el.optLower, el.optDigits, el.optSymbols, el.optAmbiguous].forEach(input => {
+    input.addEventListener('change', refresh);
+  });
+
+  el.copyBtn.addEventListener('click', () => copyToClipboard(currentPassword, 'manual'));
+
+  refresh();
+})();
+</script>
+
+</body>
+</html>
